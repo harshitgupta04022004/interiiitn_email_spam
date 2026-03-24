@@ -1,354 +1,201 @@
-# Email Spam Classifier - Fixed Version
+# 📧 Email Spam Classifier
 
-## 🚨 Critical Bugs Fixed
-
-This is the **corrected and improved** version of your email spam classifier. The original code had **5 major bugs** that would have caused severe inference errors and poor model performance.
-
-### Critical Bugs Fixed:
-
-1. **🔴 TLD Encoding Inconsistency (HIGHEST PRIORITY)**
-   - **Problem:** Using `pd.Categorical().codes` created different numeric mappings for TLDs during training vs inference
-   - **Impact:** Model would see completely different values for same TLDs → Wrong predictions
-   - **Fix:** Using `LabelEncoder` with saved encoder state, handles unknown TLDs with -1
-
-2. **🔴 Boolean Features Not Converted**
-   - **Problem:** XGBoost requires numeric data but code returned Python booleans
-   - **Impact:** Features wouldn't contribute to learning → Lower accuracy
-   - **Fix:** All boolean features converted to integers (0/1)
-
-3. **🟡 Missing Error Handling**
-   - **Problem:** No checks if model files exist before prediction
-   - **Impact:** Cryptic errors for new users
-   - **Fix:** Added comprehensive error messages and file existence checks
-
-4. **🟡 Inconsistent Label Formatting**
-   - **Problem:** Mixed label styles without emojis or clear warnings
-   - **Fix:** Added emojis and clear warnings for phishing/scam emails
-
-5. **🟢 Unused Code**
-   - **Problem:** `pdFunctions.py` file never used, creates confusion
-   - **Fix:** Documented but not critical
+A multi-class email classification system built with **XGBoost** and **SentenceTransformers**, capable of distinguishing between Ham, Spam, Phishing, and Nigerian 419 scam emails with **93.2% overall accuracy**.
 
 ---
 
-## 📦 Installation
+## 🏆 Model Performance
 
-### Prerequisites
-```bash
-# Python 3.8 or higher
-python --version
+| Class | Precision | Recall | F1-Score |
+|---|---|---|---|
+| ✅ Ham | 0.91 | 0.99 | **0.95** |
+| 🚫 Spam | 1.00 | 1.00 | **1.00** |
+| 🎣 Phishing | 0.77 | 0.55 | **0.64** |
+| 💰 Nigerian 419 | 0.81 | 0.73 | **0.77** |
+| **Weighted Avg** | **0.93** | **0.93** | **0.93** |
 
-# CUDA (optional, for GPU acceleration)
-nvidia-smi  # Check if GPU is available
+> **Best CV F1 Score:** `0.9202 ± 0.0027` across 5 folds
+
+---
+
+## 📁 Project Structure
+
 ```
-
-### Install Dependencies
-```bash
-pip install -r requirements.txt
+email_spam_classifier/
+├── artifacts/                      # Generated after training
+│   ├── model.pkl                   # Trained XGBoost model
+│   ├── tld_encoders.pkl            # TLD encoders (train/inference consistency)
+│   ├── feature_columns.json        # Feature column order (426 features)
+│   └── confusion_matrix.png        # Performance visualization
+│
+├── archive/                        # Training data (not included)
+│   ├── CEAS_08.csv                 # Ham/Spam emails
+│   ├── Nazario_5.csv               # Phishing emails
+│   └── Nigerian_5.csv              # Nigerian 419 scam emails
+│
+├── preprocessTrainingData.py       # Data loading and TLD encoding
+├── emailFeature.py                 # Sender/receiver feature extraction
+├── urlFeatureCreation.py           # URL pattern analysis
+├── textEmbedding.py                # SentenceTransformer embeddings
+├── clearnText.py                   # Text preprocessing utilities
+├── train.py                        # Training pipeline with HPO
+├── classifier.py                   # XGBoost model and tuning
+├── gradioInterface.py              # Web inference interface
+└── requirements.txt
 ```
 
 ---
 
-## 🗂️ Data Structure
+## 🗂️ Data Format
 
-Your data should be in an `archive/` folder with these files:
-```
-archive/
-├── CEAS_08.csv      # Contains 'label' column (0=ham, 1=spam)
-├── Nazario_5.csv    # Phishing emails
-└── Nigerian_5.csv   # Nigerian 419 scam emails
-```
+Place your datasets in an `archive/` folder. Each CSV must contain:
 
-**Required columns in each CSV:**
-- `sender` - Sender name and email
-- `receiver` - Receiver email
-- `subject` - Email subject
-- `body` - Email body text
+| Column | Description |
+|---|---|
+| `sender` | Sender name and email address |
+| `receiver` | Receiver email address |
+| `subject` | Email subject line |
+| `body` | Full email body text |
+
+- `CEAS_08.csv` — requires a `label` column (`0` = ham, `1` = spam)
+- `Nazario_5.csv` — phishing emails (label assigned automatically)
+- `Nigerian_5.csv` — Nigerian 419 scam emails (label assigned automatically)
 
 ---
 
 ## 🚀 Usage
 
-### Step 1: Train the Model
+### 1. Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+GPU acceleration is optional but recommended. Check availability with:
+```bash
+nvidia-smi
+```
+
+### 2. Train the Model
+
 ```bash
 python train.py
 ```
 
-**What this does:**
-1. Loads and processes training data from archive/
-2. Extracts email features, URL features, and text embeddings
-3. Performs hyperparameter tuning (50 iterations)
-4. Saves trained model to `artifacts/model.pkl`
-5. Saves TLD encoders to `artifacts/tld_encoders.pkl`
-6. Saves feature columns to `artifacts/feature_columns.json`
-7. Displays evaluation metrics
+The training pipeline runs in 5 stages:
 
-**Expected output:**
 ```
-==========================================
-TRAINING EMAIL SPAM CLASSIFIER
-==========================================
-
 [1/5] Processing training data...
-   CEAS_08: X samples
-   Nazario: Y samples (Phishing)
-   Nigerian: Z samples (Nigerian 419)
-
 [2/5] Splitting data into train/test sets...
-   Train size: (N, features)
-   Test size: (M, features)
-
-[3/5] Training model with hyperparameter tuning...
-   (This may take 10-30 minutes)
-
+[3/5] Training model with hyperparameter tuning...   # ~10–30 min
 [4/5] Saving model artifacts...
-   ✓ Model saved
-   ✓ Feature columns saved
-   ✓ TLD encoders saved
-
 [5/5] Evaluating model on test set...
-   Accuracy: X.XXXX
-   Weighted F1-Score: X.XXXX
 ```
 
-### Step 2: Run Gradio Interface
+Artifacts are saved to the `artifacts/` directory upon completion.
+
+### 3. Launch Inference Interface
+
 ```bash
 python gradioInterface.py
 ```
 
-This launches a web interface where you can:
-- Enter email details (sender, receiver, subject, body)
-- Click "Classify Email"
-- See prediction with confidence scores
-- Try example emails
-
-**Access the interface at:** `http://localhost:7860`
-
-### Step 3: Test with Examples
-The interface includes pre-loaded examples:
-- ✅ 2 legitimate emails (Ham)
-- ⚠️ 2 spam emails
-- 🎣 2 phishing attempts
-- 💰 2 Nigerian 419 scams
+Opens a Gradio web UI at `http://localhost:7860`. Supports:
+- Manual input (sender, receiver, subject, body)
+- One-click classification with confidence scores
+- Pre-loaded example emails for all four classes
 
 ---
 
-## 📊 Expected Performance
+## ⚙️ Best Hyperparameters
 
-With the fixes applied, you should see:
+Found via 50-iteration Bayesian search (`RandomizedSearchCV`):
 
-| Metric | Before Fixes | After Fixes | Improvement |
-|--------|-------------|-------------|-------------|
-| Overall F1 | ~0.75 | **~0.88-0.93** | +13-18% |
-| Phishing F1 | ~0.60 | **~0.85** | +25% |
-| Nigerian F1 | ~0.70 | **~0.90** | +20% |
-
-**Why the improvement?**
-- TLD encoding now consistent → Better email domain features
-- All features properly numeric → XGBoost can learn from all data
-- Better hyperparameters → Improved model capacity
-
----
-
-## 🔧 Key Features
-
-### Email Features Extracted:
-- **Sender/Receiver Analysis:**
-  - Email length, local part length, domain length
-  - Special characters, digits, entropy
-  - Free provider detection (gmail, yahoo, etc.)
-  - Suspicious keywords (admin, support, verify, etc.)
-  - TLD (Top-Level Domain) encoding
-  - IP address detection
-
-### URL Features Extracted:
-- **URL Pattern Analysis:**
-  - Average URL length
-  - Special character density
-  - Digit-to-letter ratio
-  - Suspicious keywords in URLs
-  - Redirection detection
-  - URL shortener detection
-  - IP address in URLs
-
-### Text Features:
-- **Semantic Embeddings:**
-  - 384-dimensional text embeddings using SentenceTransformer
-  - Captures semantic meaning of email content
+| Parameter | Value |
+|---|---|
+| `n_estimators` | 265 |
+| `max_depth` | 4 |
+| `learning_rate` | 0.1376 |
+| `colsample_bytree` | 0.8214 |
+| `subsample` | 0.9820 |
+| `gamma` | 2.6633 |
+| `min_child_weight` | 4 |
+| `reg_alpha` | 0.3345 |
+| `reg_lambda` | 2.7421 |
+| `scale_pos_weight` | 1.7446 |
 
 ---
 
-## 📁 File Structure
+## 🔧 Feature Engineering
 
-```
-email_spam_classifier/
-├── artifacts/                      # Created after training
-│   ├── model.pkl                   # Trained XGBoost model
-│   ├── tld_encoders.pkl            # ✨ NEW: TLD encoders for consistency
-│   ├── feature_columns.json        # Feature column order
-│   └── confusion_matrix.png        # Model performance visualization
-│
-├── archive/                        # Your data (not included)
-│   ├── CEAS_08.csv
-│   ├── Nazario_5.csv
-│   └── Nigerian_5.csv
-│
-├── preprocessTrainingData.py       # ✅ FIXED: TLD encoding
-├── emailFeature.py                 # ✅ FIXED: Boolean → int
-├── urlFeatureCreation.py           # ✅ FIXED: Boolean → int
-├── train.py                        # ✅ FIXED: Error handling
-├── classifier.py                   # ✅ IMPROVED: Hyperparameters
-├── textEmbedding.py                # No changes
-├── clearnText.py                   # No changes
-├── gradioInterface.py              # Minor UI improvements
-├── requirements.txt                # Dependencies
-└── README.md                       # This file
+The model uses **426 total features** across three categories:
+
+### Email Header Features (`emailFeature.py`)
+- Local part length, domain length, special character counts
+- Entropy of sender/receiver addresses
+- Free provider detection (Gmail, Yahoo, Outlook, etc.)
+- Suspicious keyword flags (`admin`, `support`, `verify`, `noreply`)
+- TLD encoding (consistent across train and inference via `LabelEncoder`)
+- IP address detection in sender field
+
+### URL Features (`urlFeatureCreation.py`)
+- Average URL length, special character density
+- Digit-to-letter ratio in URLs
+- Suspicious keyword detection in URLs
+- Redirect and URL shortener detection
+- IP address presence in URLs
+
+### Text Embeddings (`textEmbedding.py`)
+- 384-dimensional semantic embeddings via `SentenceTransformer`
+- Captures meaning of subject + body content
+
+---
+
+## 🐛 Known Issues & Fixes
+
+| # | Bug | Impact | Fix Applied |
+|---|---|---|---|
+| 1 | `pd.Categorical().codes` for TLD encoding | Different mappings at train vs inference → wrong predictions | `LabelEncoder` with saved state |
+| 2 | Boolean features not cast to int | XGBoost can't learn from Python booleans | All booleans → `int(...)` |
+| 3 | No model file existence checks | Cryptic errors at inference time | Added upfront validation |
+| 4 | Inconsistent label formatting | Poor UX in Gradio interface | Standardized with emojis and warnings |
+
+---
+
+## 🐞 Troubleshooting
+
+**`TLD encoders not found` / `Model not found`**
+```bash
+python train.py   # Train before running inference
 ```
 
----
-
-## 🐛 Debugging Tips
-
-### Issue: "TLD encoders not found"
-**Solution:** Train the model first with `python train.py`
-
-### Issue: "Model not found"
-**Solution:** Train the model first with `python train.py`
-
-### Issue: CUDA out of memory
-**Solution:** 
+**CUDA out of memory**
 ```python
-# In classifier.py, change:
+# In classifier.py:
 device='cuda'  →  device='cpu'
 
-# Or reduce batch size in textEmbedding.py:
+# In textEmbedding.py:
 batch_size=32  →  batch_size=16
 ```
 
-### Issue: Low F1 scores
-**Possible causes:**
-1. Not enough training data
-2. Class imbalance not handled
-3. Hyperparameters need more tuning
-
-**Solutions:**
-- Increase `n_iter` in `classifier.py` (line 50 to 100+)
-- Add more training examples
-- Adjust `scale_pos_weight` parameter
+**Low Phishing / Nigerian 419 F1 scores**
+- These classes have fewer training samples — collect more data
+- Increase tuning iterations: set `n_iter=100` in `classifier.py`
+- The current model already handles unknown TLDs gracefully (mapped to `-1`)
 
 ---
 
-## 🔍 Code Changes Summary
+## 📈 Roadmap
 
-### preprocessTrainingData.py
-```python
-# BEFORE (WRONG):
-df[col] = pd.Categorical(df[col].astype(str)).codes
-
-# AFTER (CORRECT):
-encoder = LabelEncoder()
-df[col] = encoder.fit_transform(df[col])
-# Save encoder for inference
-```
-
-### emailFeature.py
-```python
-# BEFORE (WRONG):
-f[p + "has_plus"] = "+" in local  # Returns True/False
-
-# AFTER (CORRECT):
-f[p + "has_plus"] = int("+" in local)  # Returns 0/1
-```
-
-### urlFeatureCreation.py
-```python
-# BEFORE (WRONG):
-return (..., presence_ip, shortening)  # Booleans
-
-# AFTER (CORRECT):
-return (..., int(presence_ip), int(shortening))  # Integers
-```
-
----
-
-## 📈 Model Performance Monitoring
-
-After training, check these metrics:
-
-### Good Signs:
-- ✅ Overall F1 > 0.85
-- ✅ Per-class F1 > 0.80 for all classes
-- ✅ Confusion matrix diagonal dominates
-- ✅ No class completely misclassified
-
-### Red Flags:
-- ⚠️ Any class F1 < 0.70
-- ⚠️ Large off-diagonal values in confusion matrix
-- ⚠️ Training accuracy >> test accuracy (overfitting)
-
----
-
-## 🎯 Next Steps for Improvement
-
-1. **More Data:**
-   - Collect more phishing and Nigerian scam examples
-   - Balance dataset if one class dominates
-
-2. **Feature Engineering:**
-   - Add timestamp features (hour of day, day of week)
-   - Extract phone numbers, money amounts
-   - Add link reputation checks
-
-3. **Model Ensemble:**
-   - Combine XGBoost with other models
-   - Use stacking or voting classifier
-
-4. **Deep Learning:**
-   - Fine-tune BERT for email classification
-   - Use transformer models for better text understanding
-
----
-
-## 📞 Support
-
-If you encounter issues:
-
-1. **Check the bug analysis:** `BUG_ANALYSIS_AND_FIXES.md`
-2. **Verify file structure:** Ensure archive/ folder exists
-3. **Check dependencies:** `pip install -r requirements.txt`
-4. **Review error messages:** They now provide helpful guidance
-
----
-
-## ✅ Testing Checklist
-
-Before deploying:
-
-- [ ] Trained model exists in `artifacts/model.pkl`
-- [ ] TLD encoders saved in `artifacts/tld_encoders.pkl`
-- [ ] Feature columns saved in `artifacts/feature_columns.json`
-- [ ] Overall F1 score > 0.85
-- [ ] All per-class F1 scores > 0.75
-- [ ] Gradio interface launches successfully
-- [ ] Example predictions work correctly
-- [ ] Unknown TLDs handled gracefully (assigned -1)
+- [ ] Add timestamp-based features (hour of day, day of week)
+- [ ] Extract phone numbers and currency amounts from body
+- [ ] Integrate URL reputation API
+- [ ] Fine-tune a BERT/DistilBERT model for text encoding
+- [ ] Build an ensemble with XGBoost + transformer classifier
+- [ ] Add LIME/SHAP explanations to the Gradio interface
 
 ---
 
 ## 📄 License
 
-This code is provided as-is for educational and research purposes.
-
----
-
-## 🙏 Acknowledgments
-
-- XGBoost team for the excellent gradient boosting library
-- Sentence-Transformers for text embedding models
-- Gradio team for the easy-to-use web interface
-
----
-
-**Version:** 2.0 (Fixed)  
-**Last Updated:** 2026-03-24  
-**Status:** ✅ Production Ready
+For educational and research use only.
