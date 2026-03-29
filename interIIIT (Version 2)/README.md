@@ -133,23 +133,6 @@ The interface includes pre-loaded examples:
 
 ---
 
-## 📊 Expected Performance
-
-With the fixes applied, you should see:
-
-| Metric | Before Fixes | After Fixes | Improvement |
-|--------|-------------|-------------|-------------|
-| Overall F1 | ~0.75 | **~0.88-0.93** | +13-18% |
-| Phishing F1 | ~0.60 | **~0.85** | +25% |
-| Nigerian F1 | ~0.70 | **~0.90** | +20% |
-
-**Why the improvement?**
-- TLD encoding now consistent → Better email domain features
-- All features properly numeric → XGBoost can learn from all data
-- Better hyperparameters → Improved model capacity
-
----
-
 ## 🔧 Key Features
 
 ### Email Features Extracted:
